@@ -54,8 +54,8 @@ Maze = {
   Properties = {
   
 		bUsable = 0,
-		iM_Width = 1,
-		iM_Height = 1,
+		iM_Width = 5,
+		iM_Height = 5,
 		
 		iM_CorridorSize = 1,
 		

@@ -22,18 +22,21 @@ Maze2 = {
   Model = "",
   CorridorSize = 0,
   
+  OriginXY = {x=0, y=0, z=0},
+  
   myWalls = {},
   
   -- Copied from BasicEntity.lua
   Properties = {
      bUsable = 0,
-	 iM_Width = 20,
-     iM_Height = 20,
+	 iM_Width = 5,
+     iM_Height = 5,
 	 object_Model = "objects/default/primitive_cube.cgf",
      
      file_map_txt = "Scripts\\Entities\\maps\\map_default.txt",
      bMap_Save_TXT = 0,
      iM_CorridorSize = 1,
+     
      
      --Copied from BasicEntity.lua
      Physics = {
@@ -82,10 +85,12 @@ function Maze2:OnInit()
     self.Map = self.Properties.file_map_txt
     self.Model = self.Properties.object_Model
     self.CorridorSize = self.Properties.iM_CorridorSize
+    self.Origin = self:GetPos()
     --self:OnReset()
     
     self:SetupModel()
     self:New()    
+    self:OnPropertyChange()
     
 end
 
@@ -104,6 +109,9 @@ function Maze2:OnReset()
     --self:New()
 end
 
+function Maze2:OnDestroy()
+    self:RemoveWalls()
+end
 ----------------------------------------------------------------------------------------------------------------------------------
 -------------------------                     State Helper Function                  ---------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
@@ -115,8 +123,8 @@ function Maze2:SetupModel()
     if(Properties.object_Model ~= "") then          -- Make sure objectModel is specified
         self:LoadObject(0,Properties.object_Model)  -- Load model into main entity
         
-           -- local v1, v2 = self:GetLocalBBox()
-            --self:GetModelDimensions(v1,v2);
+           local v1, v2 = self:GetLocalBBox()
+           self:GetModelDimensions(v1,v2);
         
         if (Properties.Physics.bPhysicalize == 1) then -- Physicalize it
             self:PhysicalizeThis();
@@ -164,11 +172,16 @@ end
 ----------------------------------------------------------------------------------------------------------------------------------
 
 function Maze2:RemoveWalls()
-    
+    Log("Removing All Walls")
     for k,v in pairs(self.myWalls) do
-        
-        v:DeleteThis()
-        
+
+        --local EntID=System.GetEntityByName(v);
+        --local EntID = System.GetEntityByName("WALLS");
+
+        --System.RemoveEntity(EntID)
+        System.RemoveEntity(v.id)
+        --v:DeleteThis()
+        --v:TestDelete()
     end
     
 end
@@ -331,12 +344,21 @@ function Maze2:Wall(w, h)
         
         local objX = self.Model_Width;
         local objY = self.Model_Height;
-        
-        local spawnPos = {x=objX*(w-1),y=objY*(h-1),z=0}
+
+        if self.Origin.x == 0 then 
+            self.Origin = self:GetPos()
+        end 
+        local xOffset = self.Origin.x;
+        local yOffset = self.Origin.y;
+        local sx = objX*(w-1) + xOffset
+        local sy = objY*(h-1) + yOffset
+
+        --Log("Spawning at (%d, %d)", sx, sy);
+        local spawnPos = {x=sx,y=sy,z=32}
 
         local params = {
             class = "Maze_Wall";
-            --name = "MyObject";
+            name = "WALLS";
             position = spawnPos;
             properties = {
                 object_Model = self.Model;
@@ -344,6 +366,7 @@ function Maze2:Wall(w, h)
         };
         
         local newWall = System.SpawnEntity(params);
+        --newWall:test()
         self.myWalls[nSlot] = newWall;
            
         --[[
@@ -537,7 +560,7 @@ function Maze2:height()
     return height
 end
 
-function Maze:corridorSize()
+function Maze2:corridorSize()
     local Properties = self.Properties;
     local cSize = Properties.iM_CorridorSize
     return cSize
@@ -693,7 +716,7 @@ function Maze2:PrintMaze2(txtName) -- Optional parameter to name map
                 curLine = curLine.."OO"
             end
             -- Add additional corridor Width Size 
-            for d=2, corridorSize do
+            for d=2, corSize do
                 --file:write("O")
                 curLine = curLine.."O"
             end
@@ -706,7 +729,7 @@ function Maze2:PrintMaze2(txtName) -- Optional parameter to name map
             
         end
         curLine = curLine.."\n"
-        for d=1, corridorSize do
+        for d=1, corSize do
             file:write(curLine)
         end
         
@@ -719,12 +742,12 @@ function Maze2:PrintMaze2(txtName) -- Optional parameter to name map
             
             if(self[y][x].south:IsClosed()) then 
                 --file:write("XX")
-                for d=1, corridorSize+1 do
+                for d=1, corSize+1 do
                     curLine = curLine.."X"
                 end
             else 
                 --file:write("OX")
-                for d=1, corridorSize do
+                for d=1, corSize do
                     curLine = curLine.."O"
                 end
                 curLine = curLine.."X"
@@ -829,7 +852,7 @@ function Maze2:GetModelDimensions(v1, v2)
     SubVectors(v, v2, v1)
     self.Model_Width = v.x
     self.Model_Height = v.y;
-    Log("Model_Width = %d, Model_Height = %d", v.x, v.y);
+    --Log("Model_Width = %d, Model_Height = %d", v.x, v.y);
 end
 
 -- Determine Map numbers 
@@ -846,7 +869,7 @@ function Maze2:Scandir(directory)
     return t
 end
 
-function Maze:CoordTransform(x,y)
+function Maze2:CoordTransform(x,y)
     local Properties = self.Properties;
     local corridorSize =  Properties.iM_CorridorSize;
     

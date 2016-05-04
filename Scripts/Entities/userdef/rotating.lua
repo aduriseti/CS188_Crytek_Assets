@@ -1,6 +1,6 @@
 Rotating = {
     Properties = {
-        object_Model = "GameSDK/objects/props/industrial/trainyard/trains/locos/l_diesel/l_diesel.cgf",
+        object_Model = "objects/default/primitive_cube.cgf",
         fRotSpeed = 3, --[0.1, 20, 0.1, "Speed of rotation"]
         --entName = "Maze1",
 		entName = "",
