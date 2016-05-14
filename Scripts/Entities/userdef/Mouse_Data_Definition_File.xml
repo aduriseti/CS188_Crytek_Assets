@@ -1,0 +1,28 @@
+<Definition root="Data">
+ 
+    <Property name="version" type="string"/>
+ 
+    <Table name="mouseDataTable">
+    
+        <Property name="EnemyInMemory" type="bool"/>
+        <Property name="LeftTurnTendency" type="float" />
+        <Property name="Boldness" type="float"/>
+        <Property name="DeathCounter" type="int"/>
+        <Property name="WinCounter" type="int" />
+        
+        <!--In Future have ToEat become table with number of each item" -->
+        <Array name="ToEat" type="string" elementName="FoodType"/>
+        <Array name="FoodLocations" elementName="Food">
+           <Property name="FoodType" type="string" />
+           <Property name="LocationGeneral" type="string"/>
+           <Property name="LocationVec" type="Vec3" optional="1"/>
+        </Array>
+        
+        <!-- In Future Have KnownDangerEnts become table with number times killed by that ent -->
+        <Array name="KnownDangerEnts" type="string" elementName="Killer" />
+        
+        <!-- If we ever get that far.... -->
+        <Array name="Allies" type="string" elementName="Mouse" />
+    </Table>
+     
+</Definition>
