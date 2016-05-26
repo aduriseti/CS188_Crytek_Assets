@@ -34,6 +34,7 @@ Maze2 = {
       Potato = {},
       PowerBall = {},
   },
+  myTraps = {},
   
   -- Copied from BasicEntity.lua
   Properties = {
@@ -44,7 +45,7 @@ Maze2 = {
      
      file_map_txt = "Scripts\\Entities\\maps\\map_default.txt",
      bMap_Save_TXT = 0,
-     iM_CorridorSize = 1,
+     iM_CorridorSize = 2,
      
      
      --Copied from BasicEntity.lua
@@ -92,6 +93,17 @@ local Physics_DX9MP_Simple = {
 ----------------------------------------------------------------------------------------------------------------------------------
 
 function Maze2:OnInit()
+	--Log("test reload script from maze");
+	--Script.ReloadScript( "SCRIPTS/Entities/userdef/LivingEntityBase.lua");
+	--Script.ReloadScript( "SCRIPTS/Entities/userdef/mouse.lua");
+	--Script.ReloadScript( "SCRIPTS/Entities/userdef/Snake.lua");
+	
+	--Log("Reload Entity script");
+	--Script.ReloadEntityScript("Mouse");
+	
+	--Log("Reload all scripts");
+	--Script.ReloadScripts();
+
     Log("OnInit is running");
     self.Width = self.Properties.iM_Width
     self.Height = self.Properties.iM_Height
@@ -101,10 +113,10 @@ function Maze2:OnInit()
     self.Origin = self:GetPos()
     --self:OnReset()
     
-    self:SetupModel()
-    self:New()    
-    self:OnPropertyChange()
-    
+    --self:SetupModel()
+    --self:New()    
+    self:SetFromProperties()
+    self:New()  
 end
 
 function Maze2:OnPropertyChange()
@@ -127,6 +139,7 @@ function Maze2:OnDestroy()
     self:RemoveMice()
     self:RemoveSnakes()
     self:RemoveFoods()
+    self:RemoveTraps()
 end
 ----------------------------------------------------------------------------------------------------------------------------------
 -------------------------                     State Helper Function                  ---------------------------------------------
@@ -174,7 +187,8 @@ function Maze2:SetFromProperties()
     self:RemoveMice()
     self:RemoveSnakes()
     self:RemoveFoods()
-
+    self:RemoveTraps()
+    
     self.Width = width
     self.Height = height
     self.Map = map
@@ -192,6 +206,7 @@ end
 
 function Maze2:RemoveWalls()
     Log("Removing All Walls")
+    --self:PrintTable(self.myWalls)
     for k,v in pairs(self.myWalls) do
 
         --local EntID=System.GetEntityByName(v);
@@ -199,6 +214,7 @@ function Maze2:RemoveWalls()
 
         --System.RemoveEntity(EntID)
         System.RemoveEntity(v.id)
+		self.myWalls[k] = nil;
         --v:DeleteThis()
         --v:TestDelete()
     end
@@ -206,6 +222,7 @@ function Maze2:RemoveWalls()
 end
 function Maze2:RemoveMice()
     Log("Removing All Mice")
+    --self:PrintTable(self.myMice)
     for k,v in pairs(self.myMice) do
 
         --local EntID=System.GetEntityByName(v);
@@ -213,6 +230,7 @@ function Maze2:RemoveMice()
 
         --System.RemoveEntity(EntID)
         System.RemoveEntity(v.id)
+        self.myMice[k] = nil;
         --v:DeleteThis()
         --v:TestDelete()
     end
@@ -220,6 +238,7 @@ function Maze2:RemoveMice()
 end
 function Maze2:RemoveSnakes()
     Log("Removing All Snakes")
+    --self:PrintTable(self.mySnakes)
     for k,v in pairs(self.mySnakes) do
 
         --local EntID=System.GetEntityByName(v);
@@ -227,6 +246,7 @@ function Maze2:RemoveSnakes()
 
         --System.RemoveEntity(EntID)
         System.RemoveEntity(v.id)
+        self.mySnakes[k] = nil
         --v:DeleteThis()
         --v:TestDelete()
     end
@@ -234,14 +254,28 @@ function Maze2:RemoveSnakes()
 end
 function Maze2:RemoveFoods()
     Log("Removing All Foods")
-    for x,y in pairs(self.myFoods) do  
-        for y,v in pairs(self.mySnakes) do
-            System.RemoveEntity(v.id)
-
+    --self:PrintTable(self.myFoods)
+    for key,value in pairs(self.myFoods) do  
+        --Log("Key is: "..key)
+        --Log("Printing Table value")
+        --self:PrintTable(value)
+        for key2,value2 in pairs(value) do
+            --Log("Key2 is (Should be an int): "..key2)
+            --Log("Printing Table value2, should be a food entity")
+            System.RemoveEntity(value2.id)
+            value[key2] = nil;
         end
     end
     
 end
+function Maze2:RemoveTraps()
+    for k,v in pairs(self.myTraps) do
+
+        System.RemoveEntity(v.id)
+        self.myTraps[k] = nil
+
+    end
+end 
 
 --Fills in border of Maze2 with blocks
 function Maze2:Border()
@@ -413,7 +447,7 @@ function Maze2:rowcol_to_pos(row, col)
   local h = row;
   local w = col;
   return {x = self.Model_Width*(w-1) + self.Origin.x, 
-    y = self.Model_Height*(h-1) + self.Origin.y};
+    y = self.Model_Height*(h-1) + self.Origin.y, z = self:GetPos().z};
 end
 
 function Maze2:pos_to_rowcol(pos) 
@@ -431,7 +465,7 @@ function Maze2:pos_to_rowcol(pos)
   local grid_dec_y = offset_blocks_y + 1;
 
   return {col = math.floor(grid_dec_x+0.5), 
-    row = math.floor(grid_dec_y+0.5)};
+          row = math.floor(grid_dec_y+0.5)};
 
 end
 
@@ -501,7 +535,7 @@ function Maze2:New()
         Log("Map property isn't empty");
         success = self:ReadMaze2();
         --Properties.file_map_txt = "";
-    end
+  end
     
     if (not success) then
         Log("Map property was empty");
@@ -566,9 +600,10 @@ function Maze2:New()
        -- obj:PhysicalizeWallSlots(); -- The Maze2 has been complete, make the walls of the Maze2 actually physical (i.e. cant go walk them)
    end
    
-   self:SpawnMice()
-   self:SpawnSnakes(5)
-   self:SpawnFood()
+   --self:SpawnMice()
+   --self:SpawnSnakes(5)
+   --self:SpawnFood()
+   --self:SpawnTraps(5)
   
 end
 
@@ -987,6 +1022,7 @@ function Maze2:CoordTransform(x,y)
 end
 
 function Maze2:SpawnMice()
+        Log("Spawning Mice")
         local w, h = 2,2
         local Properties = self.Properties;
         local width = 1+ self:width()*(self:corridorSize()+1)
@@ -1004,14 +1040,15 @@ function Maze2:SpawnMice()
         local sy = objY*(h-1) + yOffset
 
         --Log("Spawning at (%d, %d)", sx, sy);
-        local spawnPos = {x=sx,y=sy,z=32}
+        local spawnPos = {x=sx,y=sy,z=33}
         local dVec = self:GetDirectionVector()
         --LogVec("Maze orientation: ", dVec)
         local params = {
             class = "Mouse";
             name = "M";
             position = spawnPos;
-            --orientation = dVec;
+            orientation = dVec;
+           -- scale = 3;
             properties = {
                 bActive = 1;
               --  object_Model = self.Model;
@@ -1019,7 +1056,7 @@ function Maze2:SpawnMice()
         };
         
         local mouse = System.SpawnEntity(params);
-        
+       -- mouse:SetScale(3)
           self.myMice[#self.myMice+1] = mouse;
 
 end
@@ -1030,11 +1067,11 @@ function Maze2:SpawnSnakes(num)
         
         for i =1, num do
             -- Get random open coord
-            local h = random(self:height()*2+1)
+            local h = random(2, self:height()*2+1)
             if h < 1 then h = h+1 end
             if h%2 ~= 0 and h > 0 then h = h-1 end
             
-            local w = random(self:width()*2+1)
+            local w = random(2, self:width()*2+1)
             if w < 1 then w = w+1 end
             if w%2 ~= 0 and w > 0 then w = w-1 end 
             
@@ -1095,7 +1132,8 @@ function Maze2:SpawnFood(nCheese, nBerry, nPotato, nGrains, powerBallProb)
             if h%2 ~= 0 then h = h-1 end
             
             self.myFoods.Cheese[#self.myFoods.Cheese+1] = self:FoodSpawnHelper(w,h,"Cheese")
-            
+            --Log("Cheese Added, Should not be empty...")
+            --self:PrintTable(self.myFoods)
         end
         
         -- Spawn Berry 
@@ -1199,6 +1237,67 @@ function Maze2:FoodSpawnHelper(w,h, foodType)
 
         local food = System.SpawnEntity(params);
         return food
+end
+
+function Maze2:SpawnTraps(num)
+        Log("Spawning Traps")
+            
+      --  local w, h = 2, 16
+        local Properties = self.Properties;
+        local width = 1+ self:width()*(self:corridorSize()+1)
+        
+        local objX = self.Model_Width;
+        local objY = self.Model_Height;
+
+        if self.Origin.x == 0 then 
+            self.Origin = self:GetPos()
+        end 
+        local xOffset = self.Origin.x;
+        local yOffset = self.Origin.y;
+        
+        local i = 0;
+        while i < num do
+        
+            local tClass = "Trap1"
+            local tName = "Spring"
+            local tModel = "objects/default/primitive_box.cgf"
+            
+            local trapType = random(2)
+            if(trapType > 1) then 
+                tClass = "Trap2"
+                tName = "Thwomp"
+                tModel = "objects/default/primitive_cube.cgf"
+            end
+            
+            i = i +1
+            local w = random(2, self:width()*2+1) 
+            if w%2 ~= 0  then w = w-1 end
+            local h = random(2, self:height()*2+1)
+            if h%2 ~= 0  then h = h-1 end
+            
+            local sx = objX*(w-1) + xOffset
+            local sy = objY*(h-1) + yOffset
+
+            --Log("Spawning at (%d, %d)", sx, sy);
+            local spawnPos = {x=sx,y=sy,z=32}
+            local dVec = self:GetDirectionVector()
+            --LogVec("Maze orientation: ", dVec)
+            local params = {
+                class = tClass;
+                name = tName;
+                position = spawnPos;
+                --orientation = dVec;
+                properties = {
+                    bActive = 1;
+                    object_Model = tModel;
+                --  object_Model = self.Model;
+                };
+            };
+            
+            local Trap = System.SpawnEntity(params);
+            
+            self.myTraps[#self.myTraps+1] = Trap;
+        end    
 end
 
 function Maze2:PrintTable(t)

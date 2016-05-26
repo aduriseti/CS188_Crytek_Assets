@@ -1,19 +1,19 @@
 --Amal's file path
---Script.ReloadScript( "SCRIPTS/Entities/userdef/LivingEntityBase.lua");
+Script.ReloadScript( "SCRIPTS/Entities/userdef/LivingEntityBase.lua");
 
 --Mitchel's file path
-Script.ReloadScript( "SCRIPTS/Entities/Custom/LivingEntityBase.lua");
+--Script.ReloadScript( "SCRIPTS/Entities/Custom/LivingEntityBase.lua");
 
 
 -- Globals
 
 --Mitchel's file path
-Mouse_Data_Definition_File = "Scripts/Entities/Custom/Mouse_Data_Definition_File.xml"
-Mouse_Default_Data_File = "Scripts/Entities/Custom/DataFiles/Mouse_Data_File.xml"
+--Mouse_Data_Definition_File = "Scripts/Entities/Custom/Mouse_Data_Definition_File.xml"
+--Mouse_Default_Data_File = "Scripts/Entities/Custom/DataFiles/Mouse_Data_File.xml"
 
 --Amal's file path
---Mouse_Data_Definition_File = "Scripts/Entities/userdef/Mouse_Data_Definition_File.xml"
---Mouse_Default_Data_File = "Scripts/Entities/userdef/DataFiles/Mouse_Data_File.xml"
+Mouse_Data_Definition_File = "Scripts/Entities/userdef/Mouse_Data_Definition_File.xml"
+Mouse_Default_Data_File = "Scripts/Entities/userdef/DataFiles/Mouse_Data_File.xml"
 
 ----------------------------------------------------------------------------------------------------------------------------------
 -------------------------                    Mouse Table Declaration                 ---------------------------------------------
@@ -23,6 +23,8 @@ Mouse = {
 	type = "Mouse",
 	
 	States = {
+		"Test",
+		"Move",
 		"Search",
 		"Avoid",
 		"Eat",
@@ -35,23 +37,25 @@ Mouse = {
 	
     Properties = {
 		bUsable = 0,
-        object_Model = "objects/default/primitive_cube_small.cgf",
-		fRotSpeed = 3, --[0.1, 20, 0.1, "Speed of rotation"]
-		m_speed = 0.1;   
+        object_Model = "Objects/characters/animals/rat/rat.cdf",
+	    --object_Model = "objects/default/primitive_cube_small.cgf",
+		fRotSpeed = 10, --[0.1, 20, 0.1, "Speed of rotation"]
+		m_speed = 0.15;
 
 		maze_ent_name = "",         --maze_ent_name = "Maze1",
 
-        bActive = 0,
+        bActive = 1,
 
-        --Copied from BasicEntity.lua
-        Physics = {
-            bPhysicalize = 1, -- True if object should be physicalized at all.
-            bRigidBody = 1, -- True if rigid body, False if static.
-            bPushableByPlayers = 1,
+        
+		
+		--Physics = {
+        --    bPhysicalize = 1, -- True if object should be physicalized at all.
+         --   bRigidBody = 1, -- True if rigid body, False if static.
+          --  bPushableByPlayers = 1,
 
-            Density = -1,
-            Mass = -1,
-        },
+         --   Density = -1,
+         --   Mass = -1,
+       -- },
     },
 
 	Food_Properties = {
@@ -69,6 +73,13 @@ Mouse = {
     Editor = { 
 		Icon = "Checkpoint.bmp", 
 	},	
+	
+	Move = {
+		prev_state = "",
+		jump = 0,
+		impulseMag = 50,
+		impulseDir = {x=0,y=0,z=0},
+	}
 
 };
 
@@ -77,6 +88,54 @@ MakeDerivedEntityOverride(Mouse, LivingEntityBase);
 ----------------------------------------------------------------------------------------------------------------------------------
 -------------------------                    Mouse States                 --------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
+Mouse.Test = 
+{
+	OnBeginState = function(self)
+		--Log("Mouse: Test state")
+		
+  	end,
+	
+	OnUpdate = function(self, time)
+		  
+		  self.Move.prev_state = "Test"
+		  self.Move.impulseDir = self:GetDirectionVector()
+		  self.Move.impulseMag = 30
+		  --Log(self.Move.impulseMag)
+		 -- LogVec("ImpulseDir", self.Move.impulseDir)
+		  self:GotoState("Move")
+
+	end,
+	
+	OnEndState = function(self)
+		--Log("Mouse: Exiting Test State")
+	end,
+}
+
+Mouse.Move = 
+{
+	OnBeginState = function(self)
+		--Log("Mouse: Move state")
+		
+  	end,
+	
+	OnUpdate = function(self, time)
+		  --Log("Impulse added")
+		   if(jump == 1) then self.Move.impulseDir.z = 1 end
+		   --self:PrintTable(self.Move.impulseDir)
+		   --Log(self.Move.impulseMag)
+		  self:AddImpulse(-1, self:GetCenterOfMassPos(), self.Move.impulseDir, self.Move.impulseMag, 1)
+		  --self:GotoState(self.Move.prev_state)
+		  self:GotoState("Sleep")
+	end,
+	
+	OnEndState = function(self)
+		--Log("Mouse: Exiting Move State")
+		self.Move.impulseDir = {}
+		self.Move.prev_state = "Move"
+	end,
+}
+
+
 Mouse.Search =
  {
 
@@ -87,31 +146,43 @@ Mouse.Search =
 
   OnUpdate = function(self,time)
   	
-	  --[[
-		  if SeeFood then 
-		  	self:ApproachEntity()
-			self:GotoState("Eat")
-		end
-		
-		if Danger then 
-			self:GotoState("Avoid")
-		end
-		
-		if Dead then
-			self:GotoState("Dead")
-		end
-		  
-	  ]]
-
+  	  local trap;
 	  local enemy = self:ray_cast("Snake");
+	 -- local trap = self:ray_cast("Trap1");
 	  local target = self:ray_cast("Food");
-
+	  
+	  --local myTest = self:IntersectRay(0, self:GetPos(), self:GetDirectionVector(), 15)
+	  --self:PrintTable(myTest)
+	 
+	  local hitData = {};
+	  --local angles = self:GetAngles()
+	  --LogVec("angles", angles)
+	  local dir = self:GetDirectionVector();
+	  dir = vecScale(dir, 50);
+	  --LogVec("Direction", dir)
+	  local hits = Physics.RayWorldIntersection(self:GetPos(), dir, 1, ent_all, self.id, nil, hitData )
+	  --Log(hits)
+	  if(hits > 0) then 
+	  	--self:PrintTable(hitData)
+		  if(hitData[1].entity and hitData[1].entity.class == "Trap1") then 
+		  	  trap = hitData[1].entity
+		  end 
+	  end 
+	  
+	  
+	  if(trap ~=nil) then 
+	       Log("Mouse: Sees trap")
+		   local child = trap:GetChild(0)
+		   self:PrintTable(child)
+		   target = child;	
+	  end 
 	  --Log(tostring(enemy));
 	  --Log(tostring(target));
 
 	  if enemy ~= nil then
 	  	self:GotoState("Avoid");
 	  elseif target ~= nil then
+	  	--Log("Gonna Eat")
 	  	self:GotoState("Eat");
 	  else end;
 
@@ -166,7 +237,7 @@ Mouse.Cautious =
 
 	OnBeginState = function(self)
 		Log("Mouse: Entering Cautious State")
-
+		
   	end,
 
  	OnUpdate = function(self,time)
@@ -239,6 +310,8 @@ Mouse.Dead =
 	
 	OnBeginState = function(self)
 		Log("Mouse: Entering Dead State")
+			--self:SaveXMLData()
+
 			self:DeleteThis()
 
 		-- Mark as Loser
@@ -251,7 +324,7 @@ Mouse.Dead =
 	end,
 
   	OnEndState = function(self)
-		self:SaveXMLData()
+		--self:SaveXMLData()
   	end,
 }
 
@@ -286,18 +359,34 @@ function Mouse:OnEat()
 	self:GotoState("Dead")
 end
 
+
+function Mouse:THEFUCK()
+	Log("Mouse: :In THEFUCK")
+	--self:GotoState("Search")
+	--self:SetScale(3)
+	--self.mouseDataTable = self:LoadXMLData()
+	--self:PrintTable(self.mouseDataTable);
+	  --self:GotoState("Test")
+
+	self:GotoState("Search")
+	--Log("WTF")
+end 
+
+
 --sets the Mouse's properties
 function Mouse:abstractReset()
-	--Log("In Mouse AbstractReset");
-	
+	Log("Mouse: In AbstractReset")
+
+	--self.direction = self.directions.up;
+	--Log(tostring(self.direction.row_inc));
 	-- Load Knowledge Base in
-	self.mouseDataTable = self:LoadXMLData() -- Optional Parameter to SPecify what file to read
+	--self.mouseDataTable = self:LoadXMLData() -- Optional Parameter to SPecify what file to read
 	
 	--self:PrintTable(self.mouseDataTable)
-	
-	self:GotoState("Search");
-end
 
+	--self:GotoState("Search");
+
+end
 
 -- Loads a XML data file and returns it as a script table
 function Mouse:LoadXMLData(dataFile)
@@ -313,9 +402,11 @@ function Mouse:SaveXMLData(dataTable, dataFile)
 	CryAction.SaveXML(Mouse_Data_Definition_File, dataFile, dataTable);
 end
 
---[[
-function Mouse:OnUpdate(frameTime)
 
+function Mouse:OnUpdate(frameTime)
+	self:SetScale(5);
+
+	--[[
 	if (self.state == "search") then
 		--self:turnLeftAlways();
 	elseif (self.state == "run") then
@@ -335,28 +426,14 @@ function Mouse:OnUpdate(frameTime)
 	--self:randomWalk();
 
 	self:randomDirectionalWalk(frameTime);
-
+	--]]
 end
-]]
+
 
 ----------------------------------------------------------------------------------------------------------------------------------
 -------------------------                      Functions                             ---------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
 
-
-
-
-function Mouse:breathing_animation(frameTime)
-
-	local cycle_time = 50;
-	local new_scale = 0.9+(0.2 * cycle_time % frameTime );
-	--Log("New scale " .. tostring(new_scale));
-	--self.SetScale(new_scale);
-
-	Log("cycle" .. tostring(frameTime));
-	Log("New height" .. tostring(32 + 0.9+(0.2 * frameTime % cycle_time)));
-	self:SetPos({self.pos.x, self.pos.y, 32 + 0.9+(0.2/50 * frameTime % cycle_time)});
-end
 
 
 function Mouse:Eating(foodType)
@@ -391,71 +468,5 @@ function Mouse:Eating(foodType)
 end
 
 function Mouse:PowerMode()
-
-end
-
-function Mouse:PrintTable(t)
-
-    local print_r_cache={}
-
-    local function sub_print_r(t,indent)
-
-        if (print_r_cache[tostring(t)]) then
-
-            Log(indent.."*"..tostring(t))
-
-        else
-
-            print_r_cache[tostring(t)]=true
-
-            if (type(t)=="table") then
-
-                for pos,val in pairs(t) do
-
-                    if (type(val)=="table") then
-
-                        Log(indent.."["..pos.."] => "..tostring(t).." {")
-
-                        sub_print_r(val,indent..string.rep(" ",string.len(pos)+8))
-
-                        Log(indent..string.rep(" ",string.len(pos)+6).."}")
-
-                    elseif (type(val)=="string") then
-
-                        Log(indent.."["..pos..'] => "'..val..'"')
-
-                    else
-
-                        Log(indent.."["..pos.."] => "..tostring(val))
-
-                    end
-
-                end
-
-            else
-
-                Log(indent..tostring(t))
-
-            end
-
-        end
-
-    end
-
-    if (type(t)=="table") then
-
-        Log(tostring(t).." {")
-
-        sub_print_r(t,"  ")
-
-        Log("}")
-
-    else
-
-        sub_print_r(t,"  ")
-
-    end
-
-    --Log()
 
 end

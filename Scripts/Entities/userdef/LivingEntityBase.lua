@@ -10,30 +10,74 @@ LivingEntityBase = {
    -- entID = "",
     angles = 0, 
     pos = {},
+	dimensions = {},
 	
    Properties = {
 
         bUsable = 0,
-        object_Model = "objects/default/primitive_cube_small.cgf",
+        --object_Model = "objects/default/primitive_cube_small.cgf",
 		fRotSpeed = 3, --[0.1, 20, 0.1, "Speed of rotation"]
 		m_speed = 0.1;       
 
 		maze_ent_name = "",         --maze_ent_name = "Maze1",
 
-        bActive = 0,
+        bActive = 1,
 
-        --Copied from BasicEntity.lua
         Physics = {
 
-            bPhysicalize = 1, -- True if object should be physicalized at all.
-            bRigidBody = 1, -- True if rigid body, False if static.
-            bPushableByPlayers = 1,
+            --bPhysicalize = 1, -- True if object should be physicalized at all.
+           -- bRigidBody = 1, -- True if rigid body, False if static.
+            --bPushableByPlayers = 1,
 
-            Density = -1,
-            Mass = -1,
+			
+            --Density = -1,
+            mass = 10,
+			flags = 0,
+			stiffness_scale = 73,
+			
+			--Living:
+			Living = {
+				height = 0, -- vertical offset of collision geometry center
+				--size = {x=1,z=0.5}, --collision cylinder dimensions, a vector WTF WONT WORK U PIECE OF SHIT
+				size = {x=2.4,y=2.4,z=0.8},
+				--height_eye = , --vertical offset of the camera
+				--height_pivot = , -- offset from central ground position that is considered the entity center
+				--height_head = , -- vertical offset of the head
+				inertia = 5.0, -- inertia coefficient, higher means less inertia, 0 means no inertia
+				inertiaAccel = 8.0, -- Same as inertia, but used when the player accel
+				air_resistance = 0.2, -- air control coefficient, 0.0-1.0, where 1 is special (total control of movement)
+				gravity = 9.81, -- vertical gravity magnitude
+				mass = 10, -- in kg
+				min_slide_angle = 30, --  if surface slope is more than this angle (in radians), player starts sliding
+				max_climb_angle =30 , -- player cannot climb surface with slope steeper than this angle, in radians
+				--max_jump_angle = , -- player cannot jump towards ground if this angle is exceeded
+				min_fall_angle = 70, -- player starts falling when slope is steeper than this, in radians
+				max_vel_ground = 100, -- player cannot stand on surfaces that are moving faster than this
+				--colliderMat = "mat_player_collider",
+				--useCapsule=0,
+			},
+			
+			-- Area:
+			Area = {
+				type = AREA_BOX, -- type of the area, AREA_BOX, AREA_SPHERE, AREA_GEOMETRY, AREA_SHAPE, AREA_CYLINDER, AREA_SPLINE
+				--radius = , radius of the area sphere, required if the area type is AREA_SPHERE
+				box_min = {x=0,y=0,z=0}, --min vector of the bounding box, rquired if the area type is AREA_BOX
+				box_max = {x=0,y=0,z=0}, -- max vector of the bounding box, rquired if the area type is AREA_BOX
+				--points = {}, -- table containing collection of vectors in local entity space defining the 2D shape of the area, if the area type is AREA_SHAPE
+				--height = 0, -- height of the 2D area, relative to the minimal Z in the points table, if the area type is AREA_SHAPE
+				--uniform = , -- same direction in every point or always point to the center
+				--falloff = , --ellipsoidal falloff dimensions, a vector. zero vector if no falloff
+				gravity = 9.81, --gravity vector inside the physical area
+			},
+			
+				PlayerDim = {
+					cyl_r = 1, --float - radius of collider cylinder default -
+
+					cyl_pos =0.5 , --float - vertical position of collider cylinder default -
+				},
         },
     },  
-
+	
   -- optional editor information taken from BasicEntity.lua
   Editor = {
 	 	Icon = "Checkpoint.bmp",
@@ -69,52 +113,50 @@ LivingEntityBase = {
 		},
 
 	direction = {row_inc = 0, col_inc = 0},
+	Previous_Loc={},
 
 	target = "",
 
 	enemy = "",
 
 	timer  = 0,
+	
+
 
 };
 
-local Physics_DX9MP_Simple = {
-
-	bPhysicalize = 1, -- True if object should be physicalized at all.
-	bPushableByPlayers = 0,
-
-	Density = 0,
-	Mass = 0,	
-}
 
 ---------------------------------------------------------------------------------------------------------------------------------
 -------------------------                     State Functions                        --------------------------------------------
 ---------------------------------------------------------------------------------------------------------------------------------
 
 function LivingEntityBase:OnInit() 
-
+	--Log("LivingEntityBase: OnInit()")
     self:OnReset();
-
 end
 
 function LivingEntityBase:OnPropertyChange() 
-
-	Log("In OnPropertyChange");
+	--Log("LivingEntityBase: OnPropertyChange()")
 
     self:OnReset();
 
 end
 
 function LivingEntityBase:OnReset()
-
+	--OK wtf is it really not possible to reload this script from maze2?
+	--Log("test reload from maze");
+	--Log("LivingEntityBase: OnReset()")
     self:SetFromProperties()  
 
+	--Log("About to call abstractReset")
     self:abstractReset()
-
+	self:THEFUCK()
+	--Log("Should have called abstractReset")
 end
 
 -- This abstract reset is empty in Base, it purely exists if you want extra functionality from reset in subclass
 function LivingEntityBase:abstractReset()
+		Log("LivingEntityBase: AbstractReset()")
 end
 
 
@@ -123,50 +165,58 @@ end
 ----------------------------------------------------------------------------------------------------------------------------------
 
 function LivingEntityBase:SetupModel()
-
+	Log("LivingEntityBase: SetupModel()")
     local Properties = self.Properties;
 
     if(Properties.object_Model ~= "") then          -- Make sure objectModel is specified
         self:LoadObject(0,Properties.object_Model)  -- Load model into main entity
 
-        if (Properties.Physics.bPhysicalize == 1) then -- Physicalize it
-            self:PhysicalizeThis();
-        end
+		local v1, v2 = self:GetLocalBBox()
+		--local v = {x=0,y=0,z=0}
+		--LogVec("v2", v2)
+		--LogVec("v1", v1)
+		--SubVectors(v, v2, v1)
+		--LogVec("v", v)
+		--self.dimensions.Model_Width = v.x
+		--self.dimensions.Model_Height = v.y;
+		--self.Properties.Physics.Living.height = 0;
+		--self.Properties.Physics.Living.size = v;
+
+        --if (Properties.Physics.bPhysicalize == 1) then -- Physicalize it
+		self.Properties.Physics.Area.box_min = v1
+		self.Properties.Physics.Area.box_max = v2
+		--LogVec("Max", self.Properties.Physics.Area.box_max)
+		self.Properties.Physics.PlayerDim.cyl_r = v2.x
+		self.Properties.Physics.PlayerDim.cyl_pos = v2.y 
+        self:PhysicalizeThis();
+        --end
     end
-
-    
-    --[[
-
-    if (self.Properties.entName ~= "") then 
-
-        self.entID = System.GetEntityByName(self.Properties.entName); 
-
-        Log(tostring(self.entID));
-
-        Log(self.entID.type);
-
-    end 
-
-    ]] 
+	
+	--if(self.type == "Mouse") then 
+		--self:SetScale(3)
+	--end
 
 end
 
 function LivingEntityBase:PhysicalizeThis() -- Helper function to physicalize, Copied from BasicEntity.lua
-    -- Init physics.
-	local Physics = self.Properties.Physics;
-	if (CryAction.IsImmersivenessEnabled() == 0) then
-		Physics = Physics_DX9MP_Simple;
-	end
-	EntityCommon.PhysicalizeRigid( self,0,Physics,self.bRigidBodyActive );
+   
+   --self:Physicalize(0, PE_AREA, self.Properties.Physics);
+   --Log(self.Properties.Physics.PlayerDim.cyl_r)
+   
+   self:Physicalize(0, PE_LIVING, self.Properties.Physics);
+   self:SetPhysicParams(PHYSICPARAM_PLAYERDIM, self.Properties.Physics.PlayerDim)
+   self:AwakePhysics(1)
+   
 end
 
 function LivingEntityBase:SetFromProperties()
+	--Log("LivingEntityBase: SetFromProperties()")
 
     self:SetupModel();
 	self.angles = self:GetAngles(); --gets the current angles of Rotating
     self.pos = self:GetPos(); --gets the current position of Rotating
-    self.pos.z = 33
-    self:SetPos({self.pos.x, self.pos.y, self.pos.z})
+    --self.pos.z = 32
+    --self:SetPos({self.pos.x, self.pos.y, self.pos.z})
 
 	local Properties = self.Properties;
 	if (Properties.object_Model == "") then
@@ -187,12 +237,13 @@ function LivingEntityBase:SetFromProperties()
         end
     end
 
-    if (self.Maze_Properties.ID == "") then
-        Log("Error: LivingEntityBase unable to locate maze");
-        return;
-    end
+    if (self.Maze_Properties.ID ~= "") then
+		self:SetupMaze()
+    else 
+	     Log("Error: LivingEntityBase unable to locate maze");
+        --return;
+	end
 	
-    self:SetupMaze()
 
     if(self.Player_Properties.ID == "") then
         for key, value in pairs( nearby_entities ) do
@@ -204,12 +255,12 @@ function LivingEntityBase:SetFromProperties()
 
     --self.direction = self.directions.none
 
-    self:Activate(self.Properties.bActive); --set OnUpdate() on/off
+    self:Activate(1); --set OnUpdate() on/off
 
 end
 
 function LivingEntityBase:SetupMaze()
-
+	--Log("LivingEntityBase: SetupMaze()");
     --populate Maze_Properties and put LivingEntityBase in maze
     --populate Maze Properties
     self.Maze_Properties.cell_height = self.Maze_Properties.ID:height();
@@ -221,8 +272,10 @@ function LivingEntityBase:SetupMaze()
     self.Maze_Properties.model_width = self.Maze_Properties.ID.Model_Width;
     self.Maze_Properties.corridor_width = self.Maze_Properties.ID.corridorSize;       
 
+	self.Maze_Properties.grid = {};
+	
     if #self.Maze_Properties.grid ~= self.Maze_Properties.height then
-        self.Maze_Properties.grid = {};
+        --self.Maze_Properties.grid = {};
         for row = 1, self.Maze_Properties.height do
             self.Maze_Properties.grid[row] = {};
             for col = 1, self.Maze_Properties.width do
@@ -234,9 +287,13 @@ function LivingEntityBase:SetupMaze()
                 else
                     self.Maze_Properties.grid[row][col] = {occupied = false, nlsot = -1, n_visited = 0};
                 end
+				--Log(tostring(row) .. "," .. tostring(col) .. " occupied: " .. tostring(self.Maze_Properties.grid[row][col].occupied));
             end
         end
     end	
+	
+	self.Previous_Loc = self.Maze_Properties.ID:pos_to_rowcol(self:GetPos())
+	--self:PrintTable(self.Maze_Properties.grid);
 
 end
 
@@ -254,11 +311,12 @@ end
 
 function LivingEntityBase:Move_to_Pos(frameTime, pos) 
 
-	local a = self.pos;
+	local a = self:GetPos();
 	local b = pos;
+	
 	self:FaceAt(b, frameTime);
+	
 	local diff = {x = b.x - a.x, y = b.y - a.y};
-
 	local diff_mag = math.sqrt(diff.x^2 + diff.y^2);
 	local speed_mag = self.Properties.m_speed / diff_mag;
 
@@ -268,16 +326,18 @@ function LivingEntityBase:Move_to_Pos(frameTime, pos)
 end
 
 function LivingEntityBase:FaceAt(pos, fT)
+	--Log("In FaceAt");
     local a = self.pos;
     local b = pos;
-    local newAngle = math.atan2 (b.y-a.y, b.x-a.x);     
-
+    local newAngle = math.atan2 (b.y-a.y, b.x-a.x);    
+    
     local difference =((((newAngle - self.angles.z) % (2 * math.pi)) + (3 * math.pi)) % (2 * math.pi)) - math.pi;
     newAngle = (self.angles.z + difference);
-
+    
     self.angles.z = Lerp(self.angles.z, newAngle, (self.Properties.fRotSpeed*fT));  
     self:SetAngles(self.angles);
 end
+
 
 function LivingEntityBase:FollowPlayer(frameTime)
 	self:FaceAt(self.Player_Properties.ID:GetPos(), frameTime);
@@ -335,12 +395,10 @@ function LivingEntityBase:getUnoccupiedNeighbors(loc_row, loc_col)
 		if row_index > 0 and col_index > 0 and row_index <= #grid and col_index <= #grid[1] then 
 			--Log("row_index = %d, col_index = %d", row_index, col_index)
 			if grid[row_index][col_index].occupied == false then
-
-				--Log("continue moving in same direction");
-
-				--Log(tostring(loc_row + loc_row_inc));
-
-				--Log(tostring(loc_col + loc_col_inc));
+			
+				try_pos = self.Maze_Properties.ID:rowcol_to_pos(row_index, col_index);
+			
+				System.DrawLine(self.pos, {try_pos.x, try_pos.y, self.pos.z}, 0, 1, 0, 1);
 
 				empty_neighbors[#empty_neighbors+1] = {row =row_index, col = col_index, n_visited = grid[row_index][col_index].n_visited, direction = value};
 
@@ -381,19 +439,19 @@ function LivingEntityBase:runFrom(target, frameTime)
 	local loc_row_inc = self.direction.row_inc;
 	local loc_col_inc = self.direction.col_inc;
 
+	local prev_pos = self.Previous_Loc
 	--if we haven't moved out of a grid space yet, continue as before
-	if row == self.previous_row and
-			col == self.previous_col and 
-			(loc_row_inc ~= 0 or loc_col_inc) ~= 0 then
+	if row == prev_pos.row and col == prev_pos.col and (loc_row_inc ~= 0 or loc_col_inc) ~= 0 then
 		--Log("STAY ON COURSE");
 		local target_pos = self.Maze_Properties.ID:rowcol_to_pos(row+loc_row_inc, col + loc_col_inc);
+		--target_pos.z = 32;
 		self:Move_to_Pos(frameTime, target_pos);
 		return;
 	end
 
 	--else change our behavior
-	self.previous_col = col;
-	self.previous_row = row;
+	self.Previous_Loc.col = col;
+	self.Previous_Loc.row = row;
 
 	--increment visit counter of current grid space
 	--Log(tostring(self.Maze_Properties.grid[row][col].n_visited));
@@ -491,11 +549,12 @@ function LivingEntityBase:exploratoryWalk(frameTime)
 
 	local loc_row_inc = self.direction.row_inc;
 	local loc_col_inc = self.direction.col_inc;
+	
+	local empty_neighbors = self:getUnoccupiedNeighbors(row, col);
 
+	local prev_pos = self.Previous_Loc
 	--if we haven't moved out of a grid space yet, continue as before
-	if row == self.previous_row and
-			col == self.previous_col and 
-			(loc_row_inc ~= 0 or loc_col_inc) ~= 0 then
+	if row == prev_pos.row and col == prev_pos.col and (loc_row_inc ~= 0 or loc_col_inc) ~= 0 then
 		--Log("STAY ON COURSE");
 		local target_pos = self.Maze_Properties.ID:rowcol_to_pos(row+loc_row_inc, col + loc_col_inc);
 		self:Move_to_Pos(frameTime, target_pos);
@@ -503,30 +562,25 @@ function LivingEntityBase:exploratoryWalk(frameTime)
 	end
 
 	--else change our behavior
-	self.previous_col = col;
-	self.previous_row = row;
+	self.Previous_Loc.col = col;
+	self.Previous_Loc.row = row;
 
 	--increment visit counter of current grid space
-	--Log(tostring(self.Maze_Properties.grid[row][col].n_visited));
 	self.Maze_Properties.grid[row][col].n_visited = self.Maze_Properties.grid[row][col].n_visited + 1;
-	--Log(tostring(self.Maze_Properties.grid[row][col].n_visited));
-
-	local empty_neighbors = self:getUnoccupiedNeighbors(row, col);
-
-	--Log("Num Empty_neighbors: " .. tostring(#empty_neighbors));
 
 	-- if there are more options than backwards
 	if #empty_neighbors >=2 then
 		--remove backtracking as an option
 		for key, value in pairs(empty_neighbors) do
 			try_dir = empty_neighbors[key].direction;
-			if try_dir.row_inc ==  -self.direction.row_inc and
-					try_dir.col_inc == -self.direction.col_inc then
+			if try_dir.row_inc ==  -self.direction.row_inc and try_dir.col_inc == -self.direction.col_inc then
 				--Log("REMOVE BACKTRACKING AS OPTION");
 				empty_neighbors[key] = nil;
 			end
 		end
-	else end
+	else 
+	
+	end
 	
 	local min_val = 10000;
 	local min_key = 0
@@ -649,7 +703,7 @@ function LivingEntityBase:chase(target_class, time)
 			--Log("In if state")
 			local distance = vecLen(vecSub(target.pos, self.pos));
 			--Log("Distance = %d", distance)
-			if distance < 2 then
+			if distance < 1.1 then
 				--Log("Distance <= 1, Eat")
 				target:OnEat(self, 2);
 				self.target = nil;
@@ -663,6 +717,8 @@ function LivingEntityBase:chase(target_class, time)
 		else
 			return false;
 		end
+	else 
+		return false;
 	end
 end
 
@@ -701,6 +757,7 @@ function LivingEntityBase:ray_cast(target_class)
 
  	Physics.RayWorldIntersection(self.pos, diff, 1, ent_all, self.id, target.id, fucker);--, self:GetRawId(), target_mouse:GetRawId());
 
+	
 	local n_hits = 0;
 
 	for key, value in pairs(fucker) do
@@ -711,7 +768,8 @@ function LivingEntityBase:ray_cast(target_class)
 		--Log("Raycast intersect");
 		return nil;
 	end
-
+	
+	
 	return target;
 end
 
