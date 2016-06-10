@@ -21,6 +21,9 @@ Maze2 = {
   Model_Height = 0,
   Model = "",
   CorridorSize = 0,
+  Foods = 0,
+  Traps = 0,
+  Snakes = 0,
   
   OriginXY = {x=0, y=0, z=0},
   
@@ -38,15 +41,21 @@ Maze2 = {
   
   -- Copied from BasicEntity.lua
   Properties = {
+     bPlayer = 0,
      bUsable = 0,
-   iM_Width = 20,
+     iM_Width = 20,
      iM_Height = 20,
-   object_Model = "objects/default/primitive_cube.cgf",
+     
+     iM_Foods = 5,
+     iM_Traps = 10,
+     iM_Snakes = 15,
+     
+     object_Model = "objects/default/primitive_cube.cgf",
      
      file_map_txt = "Scripts\\Entities\\maps\\map_default.txt",
      bMap_Save_TXT = 0,
-     iM_CorridorSize = 2,
-     
+     iM_CorridorSize = 1,
+     entType = "Maze2",
      
      --Copied from BasicEntity.lua
      Physics = {
@@ -110,6 +119,13 @@ function Maze2:OnInit()
     self.Map = self.Properties.file_map_txt
     self.Model = self.Properties.object_Model
     self.CorridorSize = self.Properties.iM_CorridorSize
+    self.Foods = self.Properties.iM_Foods
+    self.Traps = self.Properties.iM_Traps
+    self.Snakes = self.Properties.iM_Snakes
+    
+	local pos = self:GetPos();
+	rounded_pos = {x = math.floor(pos.x + 0.5), y = math.floor(pos.y + 0.5), z = pos.z};
+	self:SetPos(rounded_pos);
     self.Origin = self:GetPos()
     --self:OnReset()
     
@@ -175,14 +191,14 @@ end
 function Maze2:SetFromProperties()
     Log("In SetFromProperties")
     
-  local Properties = self.Properties;
-  
-  if (Properties.object_Model == "") then
-    do return end;
-  end
+    local Properties = self.Properties;
+    
+    if (Properties.object_Model == "") then
+        do return end;
+    end
        
     -- Free Spawn 
-    local width, height, map, model, corSize = Properties.iM_Width, Properties.iM_Height, Properties.file_map_txt, Properties.object_Model, Properties.iM_CorridorSize
+    local width, height, map, model, corSize, foods, traps, snakes = Properties.iM_Width, Properties.iM_Height, Properties.file_map_txt, Properties.object_Model, Properties.iM_CorridorSize, Properties.iM_Foods, Properties.iM_Traps, Properties.iM_Snakes
     self:RemoveWalls()
     self:RemoveMice()
     self:RemoveSnakes()
@@ -194,6 +210,9 @@ function Maze2:SetFromProperties()
     self.Map = map
     self.Model = model
     self.CorridorSize = corSize
+    self.Foods = foods
+    self.Traps = traps 
+    self.Snakes = snakes
     
     self:SetupModel();
 
@@ -469,6 +488,41 @@ function Maze2:pos_to_rowcol(pos)
 
 end
 
+function Maze2:pos_to_cellrowcol(pos)
+	local rowcol = self:pos_to_rowcol(pos);
+	return self:rowcol_to_cellrowcol(rowcol.row, rowcol.col);
+end
+
+function Maze2:rowcol_to_cellrowcol(row, col) 
+	--row = row - 1;
+	--col = col - 1;
+	local cell_row_dec = (row - 1) / (self:corridorSize() + 1);
+	local cell_col_dec = (col - 1) / (self:corridorSize() + 1);
+	local cell_row = math.floor(cell_row_dec + 1)
+	local cell_col = math.floor(cell_col_dec + 1)
+	Log("cell_row_dec" .. tostring(cell_row_dec) .. "," .. tostring(math.floor(cell_row_dec)));
+	Log("cell_col_dec" .. tostring(cell_col_dec) .. "," .. tostring(math.floor(cell_col_dec)));
+
+	if math.floor(cell_col_dec) == cell_col_dec or math.floor(cell_row_dec) == cell_row_dec then
+		return {row = -1, col = -1};
+	else
+		return {row = cell_row, col = cell_col}
+	end
+end
+
+function Maze2:cellrowcol_to_rowcol(cell_row_arg, cell_col_arg)
+	local cell_row = cell_row_arg - 1;
+	cell_row = cell_row * (self:corridorSize() + 1) + 1 + math.floor(self:corridorSize()/2 + 0.5);
+	local cell_col = cell_col_arg - 1;
+	cell_col = cell_col * (self:corridorSize() + 1) + 1 + math.floor(self:corridorSize()/2 + 0.5);
+	return {row = cell_row, col = cell_col};
+end
+
+function Maze2:cellrowcol_to_pos(cell_row, cell_col) 
+	local rowcol = self:cellrowcol_to_rowcol(cell_row, cell_col);
+	return self:rowcol_to_pos(rowcol.row, rowcol.col); 
+end
+
 -- Spawn a wall at coordinates (w,h)
 function Maze2:Wall(w, h)
         
@@ -600,10 +654,10 @@ function Maze2:New()
        -- obj:PhysicalizeWallSlots(); -- The Maze2 has been complete, make the walls of the Maze2 actually physical (i.e. cant go walk them)
    end
    
-   --self:SpawnMice()
-   --self:SpawnSnakes(5)
-   --self:SpawnFood()
-   --self:SpawnTraps(5)
+   self:SpawnMice()
+   self:SpawnSnakes(self.Snakes)
+   self:SpawnFood(self.Foods)
+   self:SpawnTraps(self.Traps)
   
 end
 
@@ -707,6 +761,7 @@ function Maze2:corridorSize()
     local Properties = self.Properties;
     local cSize = Properties.iM_CorridorSize
     return cSize
+    --return self.CorridorSize
 end
 
 -- OOO Buddy, the fun part, picking the doors to unlock to make a Maze2
@@ -1022,8 +1077,10 @@ function Maze2:CoordTransform(x,y)
 end
 
 function Maze2:SpawnMice()
+
+        if( self.Properties.bPlayer == 1) then return end;
         Log("Spawning Mice")
-        local w, h = 2,2
+        local w, h = 2,4
         local Properties = self.Properties;
         local width = 1+ self:width()*(self:corridorSize()+1)
         local nSlot = (h-1)*width + w;
@@ -1042,9 +1099,13 @@ function Maze2:SpawnMice()
         --Log("Spawning at (%d, %d)", sx, sy);
         local spawnPos = {x=sx,y=sy,z=33}
         local dVec = self:GetDirectionVector()
+        local spawnClass = "Mouse"
+        if(self.Properties.bPlayer == 1) then 
+            spawnClass = "MousePlayer"
+        end 
         --LogVec("Maze orientation: ", dVec)
         local params = {
-            class = "Mouse";
+            class = spawnClass;
             name = "M";
             position = spawnPos;
             orientation = dVec;
@@ -1064,19 +1125,32 @@ end
 function Maze2:SpawnSnakes(num)
         local Properties = self.Properties;
         local width = 1+ self:width()*(self:corridorSize()+1)
+        local height = 1+ (self:height()*(self:corridorSize()+1));     
+        
+        local nSlot
         
         for i =1, num do
             -- Get random open coord
-            local h = random(2, self:height()*2+1)
+            local h = random(2, height)
             if h < 1 then h = h+1 end
-            if h%2 ~= 0 and h > 0 then h = h-1 end
+            --if h%2 ~= 0 and h > 0 then h = h-1 end
             
-            local w = random(2, self:width()*2+1)
+            local w = random(2, width)
             if w < 1 then w = w+1 end
-            if w%2 ~= 0 and w > 0 then w = w-1 end 
+            --if w%2 ~= 0 and w > 0 then w = w-1 end 
             
             -- Make sure its not Mouse position 
-            if w == 2 then w = w+2 end 
+            if w == 2 then w = w+1+self:corridorSize() end 
+            
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
             
             -- Spawn Logic
             local objX = self.Model_Width;
@@ -1118,18 +1192,34 @@ end
 function Maze2:SpawnFood(nCheese, nBerry, nPotato, nGrains, powerBallProb)
         
         local numCheese = nCheese or 3
-        local numBerry = nBerry or 3
-        local numPotato = nPotato or 3
-        local numGrains = nGrains or 3
-        local PB_Prob = powerBallProb or 1
+        local numBerry = nBerry or numCheese
+        local numPotato = nPotato or numCheese
+        local numGrains = nGrains or numCheese
+        local PB_Prob = powerBallProb or self:corridorSize()
+        
+        local width = 1+ self:width()*(self:corridorSize()+1)
+        local height = 1+ (self:height()*(self:corridorSize()+1));  
+        local nSlot = 0   
+        local w = 2
+        local h = 2
         
         -- Spawn Cheese
         while #self.myFoods.Cheese < numCheese do
             -- NorthEast
-            local w = random(self:width(), self:width()*2+1)
-            if w%2 ~= 0 then w = w-1 end
-            local h = random(self:height(), self:height()*2+1)
-            if h%2 ~= 0 then h = h-1 end
+            w = random(math.ceil(width/2), width)
+            --if w%2 ~= 0 then w = w-1 end
+            h = random(math.ceil(height/2), height)
+            --if h%2 ~= 0 then h = h-1 end
+            
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
             
             self.myFoods.Cheese[#self.myFoods.Cheese+1] = self:FoodSpawnHelper(w,h,"Cheese")
             --Log("Cheese Added, Should not be empty...")
@@ -1139,10 +1229,20 @@ function Maze2:SpawnFood(nCheese, nBerry, nPotato, nGrains, powerBallProb)
         -- Spawn Berry 
         while #self.myFoods.Berry < numBerry do
             -- NorthWest
-            local w = random(2, self:width())
-            if w%2 ~= 0 then w = w-1 end
-            local h = random(self:height(), self:height()*2+1)
-            if h%2 ~= 0 then h = h-1 end
+            w = random(2, math.floor(width/2))
+            --if w%2 ~= 0 then w = w-1 end
+            h = random(math.ceil(height/2), height)
+            --if h%2 ~= 0 then h = h-1 end
+            
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
             
             self.myFoods.Berry[#self.myFoods.Berry+1] = self:FoodSpawnHelper(w,h,"Berry")
             
@@ -1151,10 +1251,20 @@ function Maze2:SpawnFood(nCheese, nBerry, nPotato, nGrains, powerBallProb)
         -- Spawn Potato
         while #self.myFoods.Potato < numPotato do
             -- South East
-            local w = random(self:width(), self:width()*2+1)
-            if w%2 ~= 0 then w = w-1 end
-            local h = random(2, self:height())
-            if h%2 ~= 0 then h = h-1 end
+            w = random(math.ceil(width/2), width)
+            --if w%2 ~= 0 then w = w-1 end
+            h = random(2, math.floor(height/2))
+            --if h%2 ~= 0 then h = h-1 end
+            
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
             
             self.myFoods.Potato[#self.myFoods.Potato+1] = self:FoodSpawnHelper(w,h,"Potato")
         end
@@ -1162,25 +1272,50 @@ function Maze2:SpawnFood(nCheese, nBerry, nPotato, nGrains, powerBallProb)
         -- Spawn Grains
         while #self.myFoods.Grains < numGrains do 
             -- South West
-            local w = random(2, self:width())
-            if w%2 ~= 0 and w > 0 then w = w-1 end
-            local h = random(2, self:height())
-            if h%2 ~= 0 then h = h-1 end
+            w = random(2, math.floor(width/2))
+            --if w%2 ~= 0 and w > 0 then w = w-1 end
+            h = random(2, math.floor(height/2))
+            --if h%2 ~= 0 then h = h-1 end
+            
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
             
             self.myFoods.Grains[#self.myFoods.Grains+1] = self:FoodSpawnHelper(w,h,"Grains")
         end
         
         -- Spawn PowerBalls
-        local i = 1
+        local i = 0
         while i < PB_Prob do 
             
             if(PB_Prob > random(10)) then 
-            local w = random(2, self:width()*2+1) end
-            if w%2 ~= 0  then w = w-1 end
-            local h = random(2, self:height()*2+1)
-            if h%2 ~= 0  then h = h-1 end
+                w = random(2, width) 
+                --if w%2 ~= 0  then w = w-1 end
             
-            self.myFoods.PowerBall[#self.myFoods.PowerBall+1] = self:FoodSpawnHelper(w,h,"PowerBall")
+                h = random(2, height)
+                --if h%2 ~= 0  then h = h-1 end
+                
+                -- Check if wall there 
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    w = w-1;
+                    nSlot = (h-1)*width + w;
+                    if(self.myWalls[nSlot] ~= nil) then 
+                        h = h-1
+                    end 
+                end 
+                
+                self.myFoods.PowerBall[#self.myFoods.PowerBall+1] = self:FoodSpawnHelper(w,h,"PowerBall")
+            end
+           
+           i = i+1
+           
         end
     
       
@@ -1200,7 +1335,7 @@ function Maze2:FoodSpawnHelper(w,h, foodType)
         local xOffset = self.Origin.x;
         local yOffset = self.Origin.y;
         
-         local sx = objX*(w-1) + xOffset
+        local sx = objX*(w-1) + xOffset
         local sy = objY*(h-1) + yOffset
 
         local spawnPos = {x=sx,y=sy,z=32}
@@ -1242,10 +1377,12 @@ end
 function Maze2:SpawnTraps(num)
         Log("Spawning Traps")
             
-      --  local w, h = 2, 16
+        local w, h = 2, 16
         local Properties = self.Properties;
-        local width = 1+ self:width()*(self:corridorSize()+1)
         
+        local width = 1+ self:width()*(self:corridorSize()+1)
+        local height = 1+ (self:height()*(self:corridorSize()+1));     
+             
         local objX = self.Model_Width;
         local objY = self.Model_Height;
 
@@ -1254,7 +1391,7 @@ function Maze2:SpawnTraps(num)
         end 
         local xOffset = self.Origin.x;
         local yOffset = self.Origin.y;
-        
+       
         local i = 0;
         while i < num do
         
@@ -1270,11 +1407,21 @@ function Maze2:SpawnTraps(num)
             end
             
             i = i +1
-            local w = random(2, self:width()*2+1) 
-            if w%2 ~= 0  then w = w-1 end
-            local h = random(2, self:height()*2+1)
-            if h%2 ~= 0  then h = h-1 end
+            local w = random(2, width) 
+            --if w%2 ~= 0  then w = w-1 end
+            local h = random(2, height)
+            --if h%2 ~= 0  then h = h-1 end
             
+            -- Check if wall there 
+            nSlot = (h-1)*width + w;
+            if(self.myWalls[nSlot] ~= nil) then 
+                w = w-1;
+                nSlot = (h-1)*width + w;
+                if(self.myWalls[nSlot] ~= nil) then 
+                    h = h-1
+                end 
+            end 
+           
             local sx = objX*(w-1) + xOffset
             local sy = objY*(h-1) + yOffset
 
@@ -1283,13 +1430,13 @@ function Maze2:SpawnTraps(num)
             local dVec = self:GetDirectionVector()
             --LogVec("Maze orientation: ", dVec)
             local params = {
-                class = tClass;
-                name = tName;
+                class = tClass or "Trap1";
+                name = tName or "Spring";
                 position = spawnPos;
                 --orientation = dVec;
                 properties = {
                     bActive = 1;
-                    object_Model = tModel;
+                    object_Model = tModel or "objects/default/primitive_box.cgf";
                 --  object_Model = self.Model;
                 };
             };

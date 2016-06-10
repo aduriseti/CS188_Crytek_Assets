@@ -220,12 +220,7 @@ function Mouse_ND:getUnoccupiedNeighbors(loc_row, loc_col)
 				Log(tostring(loc_row + loc_row_inc));
 				Log(tostring(loc_col + loc_col_inc));
 				--]]
-				empty_neighbors[#empty_neighbors+1] = {
-					row =row_index, 
-					col = col_index, 
-					n_visited = grid[row_index][col_index].n_visited, 
-					direction = value
-				};
+				empty_neighbors[#empty_neighbors+1] = {row =row_index, col = col_index, n_visited = grid[row_index][col_index].n_visited, direction = value};
 
 				--Log(tostring(#empty_neighbors));
 			end

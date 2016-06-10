@@ -1,0 +1,19 @@
+<Definition root="Data">
+ 
+    <Property name="version" type="string"/>    
+        <Table name="defaultTable">
+                
+            <Array name="God" elementName="Jesus">
+                <Property name="Time" type="float"/>
+                 <Property name="MouseLocCur" type="Vec3"/>
+                 <Property name="MouseLocTo" type="Vec3"/>
+                 <Property name="AllWalls" type="string"/>
+                 <Property name="AllSnakes" type="string"/>
+                 <Property name="AllTraps" type="string"/>
+                 <Property name="AllFoods" type="string"/>
+            </Array>    
+
+            
+        </Table>
+
+</Definition>
